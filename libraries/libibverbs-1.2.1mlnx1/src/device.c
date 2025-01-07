@@ -599,7 +599,7 @@ struct ibv_context *__ibv_open_device(struct ibv_device *device)
 	if (asprintf(&devpath, "/dev/infiniband/%s", device->dev_name) < 0)
 		return NULL;
 
-        init_sock();
+	init_sock();
 
 	/*
 	 * We'll only be doing writes, but we need O_RDWR in case the

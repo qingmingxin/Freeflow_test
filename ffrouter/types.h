@@ -9,6 +9,7 @@
 #include <rdma/rdma_cma.h>
 #include <rdma/rdma_cma_abi.h>
 #include <rdma/rdma_verbs.h>
+#include <rdma/ib_user_verbs.h>
 
 #include <pthread.h>
 
@@ -22,13 +23,13 @@ typedef enum RDMA_FUNCTION_CALL
         IBV_GET_DEVICE_LIST,
         IBV_GET_CONTEXT,
         IBV_QUERY_DEV,
-        IBV_EXP_QUERY_DEV,
+        // IBV_EXP_QUERY_DEV,
         IBV_QUERY_PORT,
         IBV_ALLOC_PD,
         IBV_DEALLOC_PD,
         IBV_CREATE_QP,
         IBV_MODIFY_QP,
-	IBV_QUERY_QP,
+        IBV_QUERY_QP,
         IBV_DESTROY_QP,
 
         IBV_CREATE_SRQ,
@@ -42,11 +43,11 @@ typedef enum RDMA_FUNCTION_CALL
         IBV_GET_CQ_EVENT,
         IBV_ACK_CQ_EVENT,
         IBV_REQ_NOTIFY_CQ,
-        
+
         IBV_REG_MR,
         IBV_REG_MR_MAPPING,
         IBV_DEREG_MR,
-        
+
         IBV_REG_CM,
         IBV_POST_SEND,
         IBV_POST_RECV,
@@ -57,7 +58,7 @@ typedef enum RDMA_FUNCTION_CALL
         IBV_CREATE_AH,
         IBV_DESTROY_AH,
 
-	IBV_CREATE_FLOW,
+        IBV_CREATE_FLOW,
         IBV_DESTROY_FLOW,
 
         IBV_MALLOC,
@@ -95,7 +96,25 @@ typedef enum RDMA_FUNCTION_CALL
         SOCKET_ACCEPT,
         SOCKET_ACCEPT4,
         SOCKET_CONNECT,
-
+        // sxq
+        RDMA_1,
+        RDMA_2,
+        RDMA_3,
+        RDMA_4,
+        RDMA_5,
+        SXQ_IBV_OPEN_DEVICE,
+        SXQ_IBV_QUERY_PORT,
+        SXQ_IBV_ALLOC_PD,
+        SXQ_IBV_REG_MR,
+        SXQ_IBV_DEREG_MR,
+        SXQ_IBV_CREATE_QP,
+        SXQ_IBV_CREATE_CQ,
+        SXQ_IBV_QUERY_GID,
+        SXQ_IBV_MODIFY_QP,
+        SXQ_IBV_QUERY_QP,
+        SXQ_IBV_POST_RECV,
+        SXQ_IBV_POST_SEND,
+        SXQ_IBV_POLL_CQ
 } RDMA_FUNCTION_CALL;
 
 struct FfrRequestHeader
@@ -118,28 +137,28 @@ struct IBV_GET_CONTEXT_RSP
 
 struct IBV_QUERY_DEV_RSP
 {
-        struct ibv_device_attr dev_attr;        
+        struct ibv_device_attr dev_attr;
 };
 
 struct IBV_EXP_QUERY_DEV_REQ
 {
-        struct ibv_exp_query_device cmd;        
+        struct ib_uverbs_ex_query_device cmd;
 };
 
 struct IBV_EXP_QUERY_DEV_RSP
 {
-	int ret_errno;	
-        struct ibv_exp_query_device_resp resp;        
+        int ret_errno;
+        struct ib_uverbs_query_device_resp resp;
 };
 
 struct IBV_QUERY_PORT_REQ
 {
-        uint8_t port_num;        
+        uint8_t port_num;
 };
 
 struct IBV_QUERY_PORT_RSP
 {
-        struct ibv_port_attr port_attr;        
+        struct ibv_port_attr port_attr;
 };
 
 struct IBV_ALLOC_PD_RSP
@@ -237,14 +256,16 @@ struct IBV_REG_MR_RSP
         char shm_name[100];
 };
 
-struct IBV_REG_MR_MAPPING_REQ {
-    uint32_t key;
-    char* mr_ptr;
-    char* shm_ptr;
+struct IBV_REG_MR_MAPPING_REQ
+{
+        uint32_t key;
+        char *mr_ptr;
+        char *shm_ptr;
 };
 
-struct IBV_REG_MR_MAPPING_RSP {
-    int ret;
+struct IBV_REG_MR_MAPPING_RSP
+{
+        int ret;
 };
 
 struct IBV_DEREG_MR_REQ
@@ -266,27 +287,27 @@ struct IBV_MODIFY_QP_REQ
 
 struct IBV_MODIFY_QP_RSP
 {
-	int ret;
+        int ret;
         uint32_t handle;
 };
 
 struct IBV_QUERY_QP_REQ
 {
-	int cmd_size;
+        int cmd_size;
         char cmd[100];
 };
 
 struct IBV_QUERY_QP_RSP
 {
         int ret_errno;
-        struct ibv_query_qp_resp resp;
+        struct ib_uverbs_query_qp_resp resp;
 };
 
 struct IBV_POST_SEND_REQ
 {
         uint32_t wr_size;
         /* handle is the first 4 bytes, wr is the rest */
-        char* wr;
+        char *wr;
 };
 
 struct IBV_POST_SEND_RSP
@@ -299,7 +320,7 @@ struct IBV_POST_RECV_REQ
 {
         uint32_t wr_size;
         /* handle is the first 4 bytes, wr is the rest */
-        char* wr;
+        char *wr;
 };
 
 struct IBV_POST_RECV_RSP
@@ -384,7 +405,7 @@ struct IBV_DESTROY_AH_RSP
 
 struct IBV_CREATE_FLOW_REQ
 {
-	int exp_flow;
+        int exp_flow;
         int written_size;
         char cmd[1024];
 };
@@ -392,12 +413,12 @@ struct IBV_CREATE_FLOW_REQ
 struct IBV_CREATE_FLOW_RSP
 {
         int ret_errno;
-        struct ibv_create_flow_resp resp;
+        struct ib_uverbs_create_flow_resp resp;
 };
 
 struct IBV_DESTROY_FLOW_REQ
 {
-        struct ibv_destroy_flow cmd;
+        struct ib_uverbs_destroy_flow cmd;
 };
 
 struct IBV_DESTROY_FLOW_RSP
@@ -463,7 +484,7 @@ struct IBV_POST_SRQ_RECV_REQ
 {
         uint32_t wr_size;
         /* handle is the first 4 bytes, wr is the rest */
-        char* wr;
+        char *wr;
 };
 
 struct IBV_POST_SRQ_RECV_RSP
@@ -659,7 +680,7 @@ struct CM_INIT_QP_ATTR_REQ
 struct CM_INIT_QP_ATTR_RSP
 {
         int ret_errno;
-        struct ibv_kern_qp_attr resp;
+        struct ib_uverbs_qp_attr resp;
 };
 
 struct CM_CONNECT_REQ

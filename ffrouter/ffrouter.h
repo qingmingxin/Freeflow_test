@@ -9,7 +9,7 @@
 #include "rdma_api.h"
 #include "types.h"
 #include "log.h"
-#include "kern-abi.h"
+//#include "kern-abi.h"
 #include "tokenbucket.h"
 
 #include <string>
@@ -49,11 +49,12 @@
 #include <string.h>
 #include <time.h>
 #include <rdma/rdma_cma.h>
+#include <rdma/ib_user_verbs.h>
 #include <netdb.h>
 #include <netinet/tcp.h>
 
 #define UDP_PORT 11232
-#define HOST_NUM 2
+#define HOST_NUM 1
 
 #if defined(SCM_CREDS)          /* BSD interface */
 #define CREDSTRUCT      cmsgcred
@@ -73,8 +74,7 @@
 
 void mem_flush(const void *p, int allocation_size);
 const char HOST_LIST[HOST_NUM][16] = {
-    "192.168.2.13",
-    "192.168.2.15"
+    "172.21.204.20",
 };
 
 struct MR_SHM {

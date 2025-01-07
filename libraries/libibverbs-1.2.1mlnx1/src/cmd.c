@@ -1490,9 +1490,11 @@ int ibv_cmd_post_recv(struct ibv_qp *ibqp, struct ibv_recv_wr *wr,
 	n = (struct ibv_recv_wr *) ((void *) cmd + sizeof *cmd);
 	s = (struct ibv_sge *) (n + wr_count);
 
+	// 从共享内存中获取到wr的队列
 	wr_queue = map_cq_to_wr_queue[ibqp->recv_cq->handle];
 
 	tmp = n;
+	// 遍历要发送的所有wr
 	for (i = wr; i; i = i->next) {
 		memcpy(tmp, i, sizeof(struct ibv_recv_wr));
 

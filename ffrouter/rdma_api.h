@@ -7,12 +7,15 @@
 #include "constant.h"
 
 #include <infiniband/verbs.h>
-#include <infiniband/verbs_exp.h>
+//#include <infiniband/verbs_exp.h>
 #include <infiniband/arch.h>
-#include <infiniband/driver.h>
-#include <infiniband/driver_exp.h>
-#include <infiniband/kern-abi.h>
-#include <infiniband/kern-abi_exp.h>
+#include <rdma/ib_user_verbs.h>
+#include <rdma/ib_user_ioctl_cmds.h>
+#include "kern-abi.h"
+//#include <infiniband/driver.h>
+//#include <infiniband/driver_exp.h>
+//#include <infiniband/kern-abi.h>
+//#include <infiniband/kern-abi_exp.h>
 //#include <rdma/rdma_cma.h>
 #include <stdio.h>
 #include <semaphore.h>
@@ -100,4 +103,94 @@ struct ibv_send_wr * create_send_request(struct ib_data *myib, struct ib_conn_da
 
 void fill_sge(struct ibv_sge *sge, struct ib_data *myib);
 
+/*
+ * For write() only commands that have fixed core structures and may take uhw
+ * driver data. The last arguments are the same ones passed into the typical
+ * ibv_cmd_* function. execute_cmd_write deduces the length of the core
+ * structure based on the KABI struct linked to the enum op code.
+ */
+int _execute_cmd_write(struct ibv_context *ctx, unsigned int write_method,
+		       void *req, size_t core_req_size,
+		       size_t req_size, void *resp, size_t core_resp_size,
+		       size_t resp_size);
+#define execute_cmd_write(ctx, enum, cmd, cmd_size, resp, resp_size)           \
+	({                                                                     \
+		(cmd)->response = ioctl_ptr_to_u64(resp);         \
+		_execute_cmd_write(                                            \
+			ctx, enum, cmd, \
+			sizeof(*(cmd)), cmd_size,                              \
+			resp,        \
+			sizeof(*(resp)), resp_size);                           \
+	})
+
+
+static inline uint64_t ioctl_ptr_to_u64(const void *ptr)
+{
+	if (sizeof(ptr) == sizeof(uint64_t))
+		return (uintptr_t)ptr;
+
+	/*
+	 * Some CPU architectures require sign extension when converting from
+	 * a 32 bit to 64 bit pointer.  This should match the kernel
+	 * implementation of compat_ptr() for the architecture.
+	 */
+#if defined(__tilegx__)
+	return (int64_t)(intptr_t)ptr;
+#else
+	return (uintptr_t)ptr;
+#endif
+}
+
+/*
+ * For write() commands that use the _ex protocol. _full allows the caller to
+ * specify all 4 sizes directly. This version is used when the core structs
+ * end in a flex array. The normal and req versions are similar to write() and
+ * deduce the length of the core struct from the enum.
+ */
+int _execute_cmd_write_ex(struct ibv_context *ctx, unsigned int write_method,
+			  struct ex_hdr *req, size_t core_req_size,
+			  size_t req_size, void *resp, size_t core_resp_size,
+			  size_t resp_size);
+#define execute_cmd_write_ex_full(ctx, enum, cmd, core_cmd_size, cmd_size,     \
+				  resp, core_resp_size, resp_size)             \
+	_execute_cmd_write_ex(                                                 \
+		ctx, enum, &(cmd)->hdr, \
+		core_cmd_size, cmd_size,                                       \
+		resp,                \
+		core_resp_size, resp_size)
+#define execute_cmd_write_ex(ctx, enum, cmd, cmd_size, resp, resp_size)        \
+	execute_cmd_write_ex_full(ctx, enum, cmd, sizeof(*(cmd)), cmd_size,    \
+				  resp, sizeof(*(resp)), resp_size)
+#define execute_cmd_write_ex_req(ctx, enum, cmd, cmd_size)                     \
+	({                                                                     \
+		_execute_cmd_write_ex(                                         \
+			ctx, enum,                                             \
+			&(cmd)->hdr,    \
+			sizeof(*(cmd)), cmd_size, NULL, 0, 0);                 \
+	})
+  
+static inline size_t __check_divide(size_t val, unsigned int div)
+{
+	assert(val % div == 0);
+	return val / div;
+}
+
+/*#elif defined(__x86_64__)*/
+#define mmio_flush_writes() asm volatile("sfence" ::: "memory")
+/* Prevent WC writes from being re-ordered relative to other MMIO
+   writes. This should be used before a write to WC memory.
+
+   This must act as a barrier to prevent write re-ordering from different
+   memory types:
+     *mmio_mem = 1;
+     mmio_flush_writes();
+     *wc_mem = 2;
+   Must always produce a TLP '1' followed by '2'.
+
+   This barrier implies udma_to_device_barrier()
+
+   This is intended to be used in conjunction with WC memory to generate large
+   PCI-E MemWr TLPs from the CPU.
+*/
+#define mmio_wc_start() mmio_flush_writes()
 #endif /* RDMA_API_H */
